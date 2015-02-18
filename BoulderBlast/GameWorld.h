@@ -21,7 +21,7 @@ public:
 	virtual ~GameWorld()
 	{
 	}
-	
+
 	virtual int init() = 0;
 	virtual int move() = 0;
 	virtual void cleanUp() = 0;

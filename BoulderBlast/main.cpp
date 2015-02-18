@@ -11,7 +11,7 @@ using namespace std;
   // replace the string literal with a full path name to the directory,
   // e.g., "Z:/CS32/BoulderBlast/Assets" or "/Users/fred/cs32/BoulderBlast/Assets"
 
-const string assetDirectory = "Assets"; 
+const string assetDirectory = "/Users/hanjunli/Desktop/Homeworks/CS32/Project3/BoulderBlast_build/DerivedData/BoulderBlast/Build/Products/Debug/Assets";
 
 class GameWorld;
 
