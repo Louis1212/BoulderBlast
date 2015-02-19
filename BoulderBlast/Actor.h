@@ -34,7 +34,7 @@ class Wall: public Actor
 public:
   Wall(int x, int y, StudentWorld* ptr);
 private:
-  int id; // TOASK -- why need it?
+
 };
 
 //----------Player Class----------
@@ -48,7 +48,7 @@ public:
   void fire();
   void exit();
 private:
-  int id;
+
   int ammu;
 };
 
@@ -58,7 +58,7 @@ class Boulder: public Character
 public:
   Boulder(int x, int y, StudentWorld* ptr);
 private:
-  int id;
+
 };
 
 

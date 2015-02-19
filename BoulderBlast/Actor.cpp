@@ -58,12 +58,12 @@ void Character::moveNMark(int ox, int oy)
 
 //----------Wall----------
 Wall::Wall(int x, int y, StudentWorld* ptr)
-  :Actor(IID_WALL, x, y, ptr), id(IID_WALL){}
+  :Actor(IID_WALL, x, y, ptr){}
 
 //----------Player----------
 Player::Player(int x, int y, StudentWorld* ptr)
   :Character(x, y, 20, IID_PLAYER, ptr, right),
-   id(IID_PLAYER), ammu(20){}
+   ammu(20){}
 
 void Player::push(int x, int y)
 {
@@ -133,5 +133,4 @@ void Player:: doSomething()
 
 //----------Boulder----------
 Boulder::Boulder(int x, int y, StudentWorld* ptr)
-  :Character(x, y, 10, IID_BOULDER, ptr),
-   id(IID_BOULDER){}
+  :Character(x, y, 10, IID_BOULDER, ptr){}
