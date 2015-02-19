@@ -61,6 +61,13 @@ Actor* StudentWorld::getActor(int x, int y)
   return map[x][y];
 }
 
+void StudentWorld::addActor(Actor* a, bool ifUpdate)
+{
+  objects.push_back(a);
+  if(ifUpdate)
+    update(a->getX(), a->getY(), a);
+}
+
 int StudentWorld::init()
 {
   ostringstream tempS;
@@ -83,11 +90,16 @@ int StudentWorld::init()
         Level::MazeEntry ge = lev.getContentsOf(i,j);
         switch(ge)
           {
+          case Level::hole:
+            {
+              Actor* tmp = new Hole(i,j, this);
+              addActor(tmp);
+              break;
+            }
           case Level::wall:
             {
               Actor* tmp = new Wall(i,j,this);
-              objects.push_back(tmp);
-              update(i,j, tmp);
+              addActor(tmp);
               break;
             }
           case Level::player:
@@ -96,11 +108,10 @@ int StudentWorld::init()
               update(i,j, p);
               break;
             }
-              case Level::boulder:
+          case Level::boulder:
             {
               Actor* tmp = new Boulder(i,j,this);
-              objects.push_back(tmp);
-              update(i,j, tmp);
+              addActor(tmp);
               break;
             }
           default:
@@ -126,6 +137,20 @@ int StudentWorld::move()
 {
   if(p->isAlive())
     p->doSomething();
+  list<Actor*>::iterator iter = objects.begin();
+  while(iter != objects.end())
+    {
+      if(!(*iter)->isAlive())
+        {
+          delete *iter;
+          iter = objects.erase(iter);
+        }
+      else
+        {
+          (*iter)->doSomething();
+          iter++;
+        }
+    }
   return GWSTATUS_CONTINUE_GAME;
 }
 

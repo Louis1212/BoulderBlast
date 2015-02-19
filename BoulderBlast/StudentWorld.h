@@ -23,7 +23,8 @@ public:
   virtual void update(int x, int y, Actor* ptrA);
   virtual void deUpdate(int x, int y);
   virtual bool isEmpty(int x, int y);
-  Actor* getActor(int x, int y);
+  virtual Actor* getActor(int x, int y);
+  virtual void addActor(Actor* a, bool ifUpdate = true);
   ~StudentWorld();
 private:
   Player* p;
