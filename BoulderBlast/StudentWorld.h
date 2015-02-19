@@ -20,14 +20,15 @@ public:
   virtual int init();
   virtual int move();
   virtual void cleanUp();
-  virtual void update(int x, int y, char c = 'X');
+  virtual void update(int x, int y, Actor* ptrA);
   virtual void deUpdate(int x, int y);
   virtual bool isEmpty(int x, int y);
+  Actor* getActor(int x, int y);
   ~StudentWorld();
 private:
   Player* p;
   list<Actor*> objects;
-  vector< vector<char> > map;
+  vector< vector<Actor*> > map;
 };
 
 

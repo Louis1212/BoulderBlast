@@ -28,24 +28,24 @@ StudentWorld::StudentWorld(std::string assetDir)
     map[i].resize(15);
   for(int i = 0; i < 15; i++)
     for(int j = 0; j < 15; j++)
-      map[i][j] = ' ';
+      map[i][j] = nullptr;
 }
 
 StudentWorld::~StudentWorld()
 {
-  for(list<Actor*>::iterator p = objects.begin(); p != objects.end(); p++)
-    delete *p;
+  for(list<Actor*>::iterator q = objects.begin(); q != objects.end(); q++)
+    delete *q;
   delete p;
 }
 
-void StudentWorld::update(int x, int y, char c) // update on the map it's location.
+void StudentWorld::update(int x, int y, Actor* ptrA) // update on the map it's location.
 {
-  map[x][y] = c;
+  map[x][y] = ptrA;
 }
 
 void StudentWorld::deUpdate(int x, int y)
 {
-  map[x][y] = ' ';
+  map[x][y] = nullptr;
 }
 
 bool StudentWorld::isEmpty(int x, int y)
@@ -53,7 +53,12 @@ bool StudentWorld::isEmpty(int x, int y)
   if(x >= 15 || y >= 15 ||
      x < 0 || y < 0)
     return false;
-  return (map[x][y] == ' ');
+  return (map[x][y] == nullptr);
+}
+
+Actor* StudentWorld::getActor(int x, int y)
+{
+  return map[x][y];
 }
 
 int StudentWorld::init()
@@ -82,13 +87,20 @@ int StudentWorld::init()
             {
               Actor* tmp = new Wall(i,j,this);
               objects.push_back(tmp);
-              update(i,j);
+              update(i,j, tmp);
               break;
             }
           case Level::player:
             {
               p = new Player(i,j,this);
-              update(i,j, '@');
+              update(i,j, p);
+              break;
+            }
+              case Level::boulder:
+            {
+              Actor* tmp = new Boulder(i,j,this);
+              objects.push_back(tmp);
+              update(i,j, tmp);
               break;
             }
           default:
@@ -112,18 +124,27 @@ int StudentWorld::init()
 
 int StudentWorld::move()
 {
+  if(p->isAlive())
+    p->doSomething();
   return GWSTATUS_CONTINUE_GAME;
 }
 
 void StudentWorld::cleanUp()
 {
-  decLives();
+  // for(vector< vector<Actor*> >::iterator o = map.begin();
+  //     o != map.end(); o++)
+  //   for(vector<Actor*>::iterator q = o->begin(); q != o->end(); o++)
+  //     delete *q;
+  // delete p;
+
+  for(list<Actor*>::iterator q = objects.begin(); q != objects.end(); q++)
+    delete *q;
 }
 
 
 GameWorld* createStudentWorld(string assetDir)
 {
-	return new StudentWorld(assetDir);
+  return new StudentWorld(assetDir);
 }
 
 // Students:  Add code to this file (if you wish), StudentWorld.h, Actor.h and Actor.cpp

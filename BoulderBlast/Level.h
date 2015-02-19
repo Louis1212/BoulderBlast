@@ -56,7 +56,7 @@ public:
 
 			if (line.size() < VIEW_WIDTH  ||  line.find_first_not_of(" \t\r", VIEW_WIDTH) != std::string::npos)
 				return load_fail_bad_format;
-				
+
 			for (int x = 0; x < VIEW_WIDTH; x++)
 			{
 				MazeEntry me;

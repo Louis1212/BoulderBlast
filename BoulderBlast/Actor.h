@@ -4,14 +4,12 @@
 #include "StudentWorld.h"
 #include "GraphObject.h"
 
-// Students:  Add code to this file, Actor.cpp, StudentWorld.h, and StudentWorld.cpp
-
 //----------Actor Class----------
 class Actor: public GraphObject
 {
 public:
   Actor(int id, int x, int y, StudentWorld* ptr, Direction d = none);
-  virtual void doSomething() = 0;
+  virtual void doSomething();
   bool isAlive();
   StudentWorld* getWorld();
 private:
@@ -20,11 +18,12 @@ private:
 };
 
 //----------Character Class----------
-class Character: public Actor // TOASK -- abstract class or not?
+class Character: public Actor
 {
 public:
-  Character(int x, int y, Direction d,
-            int points, int id, StudentWorld* ptr);
+  Character(int x, int y, int points, int id,
+            StudentWorld* ptr, Direction d);
+  virtual void moveNMark(int ox, int oy);
 private:
   int hitPoint;
 };
@@ -34,7 +33,6 @@ class Wall: public Actor
 {
 public:
   Wall(int x, int y, StudentWorld* ptr);
-  virtual void doSomething();
 private:
   int id; // TOASK -- why need it?
 };
@@ -45,12 +43,23 @@ class Player: public Character
 public:
   Player(int x, int y, StudentWorld* ptr);
   virtual void doSomething();
+   // Construction!v
+  void push(int x, int y);
+  void fire();
+  void exit();
 private:
   int id;
   int ammu;
 };
 
-
+//----------Boulder Class----------
+class Boulder: public Character
+{
+public:
+  Boulder(int x, int y, StudentWorld* ptr);
+private:
+  int id;
+};
 
 
 
