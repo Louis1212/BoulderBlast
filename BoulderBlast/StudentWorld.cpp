@@ -175,7 +175,7 @@ int StudentWorld::init()
         break;
       case Level::exit:
         e = new Exit(i,j,this);
-        update(i,j, p);
+        update(i,j, e);
         break;
       case Level::jewel:
         tmp = new Jewel(i, j, this);
@@ -290,6 +290,11 @@ void StudentWorld::cleanUp()
   while(q != objects.end()){
     delete *q;
     q = objects.erase(q);
+  }
+  list<Robot*>::iterator t = timer.begin();
+  while(t != timer.end()){
+    delete *t;
+    t = timer.erase(t);
   }
 
   for(int i = 0; i < 15; i++)

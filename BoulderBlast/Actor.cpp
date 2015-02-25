@@ -416,13 +416,13 @@ bool Robot::shouldFire(Player* p1)
     if(v > 0 && d == up){
       sf = true;
       for(int i = 1; i < v; i++)
-        if(getWorld()->isBlocked(getX() + i, getY()))
+        if(getWorld()->isBlocked(getX(), getY() + i))
           sf = false;
     }
     else if(v < 0 && d == down){
       sf = true;
       for(int i = 1; i < (-v); i++)
-        if(!getWorld()->isBlocked(getX() - i, getY()))
+        if(!getWorld()->isBlocked(getX(), getY() - i))
           sf = false;
     }
   }
@@ -430,13 +430,13 @@ bool Robot::shouldFire(Player* p1)
     if(h > 0 && d == right){
       sf = true;
       for(int i = 1; i < h; i++)
-        if(getWorld()->isBlocked(getX(), getY() + i))
+        if(getWorld()->isBlocked(getX() + i, getY()))
           sf = false;
     }
     else if(h < 0 && d == left){
       sf = true;
       for(int i = 1; i < (-h); i++)
-        if(getWorld()->isBlocked(getX(), getY() - i))
+        if(getWorld()->isBlocked(getX() - i, getY()))
           sf = false;
     }
   }
