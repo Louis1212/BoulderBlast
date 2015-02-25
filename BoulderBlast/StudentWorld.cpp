@@ -192,8 +192,11 @@ int StudentWorld::init()
         deUpdate(i, j);
         break;
       case Level::horiz_snarlbot:
-        tmp = new SnarlBot(i, j, this, speed_Snarl);
+        tmp = new SnarlBot(i, j, this, speed_Snarl, Actor::right);
+        break;
       case Level::vert_snarlbot:
+        tmp = new SnarlBot(i, j, this, speed_Snarl, Actor::down);
+        break;
         //   break;
         // case Level::kleptobot_factory:
         //   break;

@@ -1,6 +1,6 @@
 #include "Actor.h"
 #include "StudentWorld.h"
-
+#include <stdlib.h>
 //----------Help----------
 
 
@@ -422,7 +422,7 @@ bool Robot::shouldFire(Player* p1)
     else if(v < 0 && d == down){
       sf = true;
       for(int i = 1; i < (-v); i++)
-        if(!getWorld()->isBlocked(getX(), getY() - i))
+        if(getWorld()->isBlocked(getX(), getY() - i))
           sf = false;
     }
   }
@@ -445,8 +445,8 @@ bool Robot::shouldFire(Player* p1)
 
 //----------SnarlBot----------
 
-SnarlBot::SnarlBot(int x, int y, StudentWorld* ptr, int sr)
-  :Robot(x, y, ptr, IID_SNARLBOT, right, sr) {}
+SnarlBot::SnarlBot(int x, int y, StudentWorld* ptr, int sr, Direction d)
+  :Robot(x, y, ptr, IID_SNARLBOT, d, sr) {}
 
 void SnarlBot::fire(int sound)
 {
@@ -466,8 +466,10 @@ void SnarlBot::doSomething(int tick)
   if(!shouldMove(tick))
     return;
 
-  if(shouldFire(getWorld()->getPlayer()))
+  if(shouldFire(getWorld()->getPlayer())){
     fire();
+    return;
+  }
 
   switch(getDirection()){
   case up:
@@ -489,5 +491,4 @@ void SnarlBot::doSomething(int tick)
   default:
     break;
   }
-
 }

@@ -161,7 +161,7 @@ private:
 class SnarlBot: public Robot
 {
 public:
-  SnarlBot(int x, int y, StudentWorld* ptr, int sr);
+  SnarlBot(int x, int y, StudentWorld* ptr, int sr, Direction d);
   virtual void fire(int sound = SOUND_ENEMY_FIRE);
   virtual void doSomething();
   virtual void attacked(int blank);
