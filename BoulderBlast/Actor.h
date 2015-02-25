@@ -151,7 +151,7 @@ public:
   Robot(int x, int y, StudentWorld* ptr, int id, Direction d, int sr);
   bool shouldMove(int tick);
   bool shouldFire(Player* p);
-  virtual void doSomething(int tick);
+  virtual void doSomething(int tick); // moves until blocked
   virtual ~Robot();
 private:
   int speed_recip;
@@ -167,5 +167,12 @@ public:
   virtual void attacked(int blank);
   virtual void doSomething(int tick);
 };
+
+//---------- Classs----------
+class SnarlBot: public Robot
+{
+public:
+
+}
 
 #endif // ACTOR_H_

@@ -398,7 +398,28 @@ Robot::~Robot()
 {return;}
 
 void Robot::doSomething(int tick)
-{return;}
+{
+  switch(getDirection()){
+  case up:
+    if( !moveNMark(getX(), getY()+1) )
+      setDirection(down);
+    break;
+  case down:
+    if( !moveNMark(getX(), getY()-1) )
+      setDirection(up);
+    break;
+  case right:
+    if( !moveNMark(getX()+1, getY()) )
+      setDirection(left);
+    break;
+  case left:
+    if(!moveNMark(getX()-1, getY()) )
+      setDirection(right);
+    break;
+  default:
+    break;
+  }
+}
 
 bool Robot::shouldMove(int tick)
 {
@@ -471,24 +492,5 @@ void SnarlBot::doSomething(int tick)
     return;
   }
 
-  switch(getDirection()){
-  case up:
-    if( !moveNMark(getX(), getY()+1) )
-      setDirection(down);
-    break;
-  case down:
-    if( !moveNMark(getX(), getY()-1) )
-      setDirection(up);
-    break;
-  case right:
-    if( !moveNMark(getX()+1, getY()) )
-      setDirection(left);
-    break;
-  case left:
-    if(!moveNMark(getX()-1, getY()) )
-      setDirection(right);
-    break;
-  default:
-    break;
-  }
+  Robot::doSomething(tick);
 }
