@@ -9,7 +9,7 @@ class Actor: public GraphObject
 {
 public:
   Actor(int id, int x, int y, StudentWorld* ptr, Direction d = none);
-  virtual void doSomething() = 0;
+  virtual void doSomething()=0;
   bool isAlive();
   void setDead();
   StudentWorld* getWorld();
@@ -34,9 +34,12 @@ class Character: public Actor
 public:
   Character(int x, int y, int points, int id,
             StudentWorld* ptr, Direction d);
-  virtual void moveNMark(int ox, int oy);
-  virtual void attacked();
+  virtual bool moveNMark(int ox, int oy, bool isBoulder= false);
+  virtual void attacked(int sound);
+  virtual void fire(int sound);
   virtual ~Character();
+  void setHealth(int p1);
+  int getHealth();
 private:
   int hitPoint;
 };
@@ -57,11 +60,12 @@ public:
   Player(int x, int y, StudentWorld* ptr);
   virtual void doSomething();
   void push(int x, int y);
-  void fire();
-  //construction:
-  void exit();
+  virtual void fire(int sound = SOUND_PLAYER_FIRE);
+  virtual void attacked(int blank);
+  void pickUp(int x, int y);
+  void buff(char c);
+  int getAmmo();
 private:
-
   int ammu;
 };
 
@@ -90,6 +94,78 @@ public:
   Bullet(int x, int y, StudentWorld* ptr, Direction d);
   void damage(int x, int y);
   virtual void doSomething();
+};
+
+//----------Collectable Class----------
+class Collectable: public Object
+{
+public:
+  Collectable(int x, int y, int id, StudentWorld* ptr);
+  virtual void collected();
+};
+
+
+//----------Jewel Classs----------
+class Jewel: public Collectable
+{
+public:
+  Jewel(int x, int y, StudentWorld* ptr);
+};
+
+//----------Ammo Classs----------
+class Ammo: public Collectable
+{
+public:
+  Ammo(int x, int y, StudentWorld* ptr);
+};
+
+//----------Extra life Classs----------
+class Extra_life: public Collectable
+{
+public:
+  Extra_life(int x, int y, StudentWorld* ptr);
+};
+
+//----------Restore health Classs----------
+class Restore_health: public Collectable
+{
+public:
+  Restore_health(int x, int y, StudentWorld* ptr);
+};
+
+//----------Exit Classs----------
+class Exit: public Actor
+{
+public:
+  Exit(int x, int y, StudentWorld* ptr);
+  virtual void doSomething();
+  bool isRevealed();
+ private:
+  bool revealed;
+};
+
+//----------Robot Classs----------
+class Robot: public Character
+{
+public:
+  Robot(int x, int y, StudentWorld* ptr, int id, Direction d, int sr);
+  bool shouldMove(int tick);
+  bool shouldFire(Player* p);
+  virtual void doSomething(int tick);
+  virtual ~Robot();
+private:
+  int speed_recip;
+};
+
+//----------SnarlBot Classs----------
+class SnarlBot: public Robot
+{
+public:
+  SnarlBot(int x, int y, StudentWorld* ptr, int sr);
+  virtual void fire(int sound = SOUND_ENEMY_FIRE);
+  virtual void doSomething();
+  virtual void attacked(int blank);
+  virtual void doSomething(int tick);
 };
 
 #endif // ACTOR_H_

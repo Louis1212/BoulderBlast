@@ -5,6 +5,7 @@
 #include <sstream>
 #include <iomanip>
 #include <vector>
+#include <list>
 
 using namespace std;
 
@@ -21,7 +22,7 @@ using namespace std;
 
 
 StudentWorld::StudentWorld(std::string assetDir)
-  :GameWorld(assetDir), p(nullptr)
+  :GameWorld(assetDir), bonus(1000), p(nullptr), e(nullptr), tick(0)
 {
   map.resize(15);
   for(int i = 0; i < 15; i++)
@@ -33,9 +34,20 @@ StudentWorld::StudentWorld(std::string assetDir)
 
 StudentWorld::~StudentWorld()
 {
-  for(list<Actor*>::iterator q = objects.begin(); q != objects.end(); q++)
-    delete *q;
+  list<Actor*>::iterator o = objects.begin();
+  while(o != objects.end()){
+    delete *o;
+    o = objects.erase(o);
+  }
+  list<Robot*>::iterator t = timer.begin();
+  while(t != timer.end()){
+    delete *t;
+    t = timer.erase(t);
+  }
   delete p;
+  p = nullptr;
+  delete e;
+  e = nullptr;
 }
 
 void StudentWorld::update(int x, int y, Actor* ptrA) // update on the map it's location.
@@ -50,10 +62,29 @@ void StudentWorld::deUpdate(int x, int y)
 
 bool StudentWorld::isEmpty(int x, int y)
 {
-  if(x >= 15 || y >= 15 ||
-     x < 0 || y < 0)
+  if(x >= 15 || y >= 15 || x < 0 || y < 0)
     return false;
   return (map[x][y] == nullptr);
+}
+
+bool StudentWorld::isWalkable(int x, int y)
+{
+  if(x >= 15 || y >= 15 || x < 0 || y < 0)
+    return false;
+  if(isBlocked(x, y))
+    return false;
+  Hole* h = dynamic_cast<Hole*>(map[x][y]);
+  return (h == nullptr);
+}
+
+bool StudentWorld::isBlocked(int x, int y)
+{
+  if(x >= 15 || y >= 15 || x < 0 || y < 0)
+    return true;
+  Character* c = dynamic_cast<Character*>(map[x][y]);
+  Wall* w  = dynamic_cast<Wall*>(map[x][y]);
+
+  return (c != nullptr || w != nullptr);
 }
 
 Actor* StudentWorld::getActor(int x, int y)
@@ -63,9 +94,46 @@ Actor* StudentWorld::getActor(int x, int y)
 
 void StudentWorld::addActor(Actor* a, bool ifUpdate)
 {
-  objects.push_back(a);
+  if(a == nullptr)
+    return;
+  Robot* r = dynamic_cast<Robot*>(a);
+  if(r != nullptr)
+    timer.push_back(r);
+  else
+    objects.push_back(a);
   if(ifUpdate)
     update(a->getX(), a->getY(), a);
+}
+
+bool StudentWorld::isPlayer(int x, int y)
+{
+  return(x == p->getX() && y == p->getY());
+}
+
+bool StudentWorld::isExit(int x, int y)
+{
+  return(x == e->getX() && y == e->getY());
+}
+
+Exit* StudentWorld::getExit()
+{
+  return e;
+}
+
+Player* StudentWorld::getPlayer()
+{
+  return p;
+}
+
+bool StudentWorld::isComplete()
+{
+  for(list<Actor*>::iterator p = objects.begin();
+      p != objects.end(); p++){
+    Jewel* j = dynamic_cast<Jewel*>(*p);
+    if(j != nullptr)
+      return false;
+  }
+  return true;
 }
 
 int StudentWorld::init()
@@ -79,78 +147,134 @@ int StudentWorld::init()
   Level lev(assetDirectory());
   Level::LoadResult result = lev.loadLevel(cLevel);
 
+  int speed_Snarl = ( ( (28 - getLevel()) / 4 ) > 3 )
+    ? ((28 - getLevel()) /4 ): 3;
+
   if (result == Level::load_fail_file_not_found)
     return -1;
   else if (result == Level:: load_fail_bad_format)
     return -1;
 
   for(int i = 0; i < 15; i++)
-    for(int j = 0; j < 15; j++)
-      {
-        Level::MazeEntry ge = lev.getContentsOf(i,j);
-        switch(ge)
-          {
-          case Level::hole:
-            {
-              Actor* tmp = new Hole(i,j, this);
-              addActor(tmp);
-              break;
-            }
-          case Level::wall:
-            {
-              Actor* tmp = new Wall(i,j,this);
-              addActor(tmp);
-              break;
-            }
-          case Level::player:
-            {
-              p = new Player(i,j,this);
-              update(i,j, p);
-              break;
-            }
-          case Level::boulder:
-            {
-              Actor* tmp = new Boulder(i,j,this);
-              addActor(tmp);
-              break;
-            }
-          default:
-            break;
-          // case Level::empty:
-          //   break;
-          // case Level::exit:
-          //   break;
-          // case Level::horiz_snarlbot:
-          //   break;
-          // case Level::vert_snarlbot:
-          //   break;
-          // case Level::kleptobot_factory:
-          //   break;
-          // case Level::angry_kleptobot_factory:
-          //   break;
-          }
+    for(int j = 0; j < 15; j++){
+      Level::MazeEntry ge = lev.getContentsOf(i,j);
+      Actor* tmp = nullptr;
+      switch(ge){
+      case Level::hole:
+        tmp = new Hole(i,j, this);
+        break;
+      case Level::wall:
+        tmp = new Wall(i,j,this);
+        break;
+      case Level::player:
+        p = new Player(i,j,this);
+        update(i,j, p);
+        break;
+      case Level::boulder:
+        tmp = new Boulder(i,j,this);
+        break;
+      case Level::exit:
+        e = new Exit(i,j,this);
+        update(i,j, p);
+        break;
+      case Level::jewel:
+        tmp = new Jewel(i, j, this);
+        break;
+      case Level::extra_life:
+        tmp = new Extra_life(i, j, this);
+        break;
+      case Level::restore_health:
+        tmp = new Restore_health(i, j, this);
+        break;
+      case Level::ammo:
+        tmp = new Ammo(i, j, this);
+      case Level::empty:
+        deUpdate(i, j);
+        break;
+      case Level::horiz_snarlbot:
+        tmp = new SnarlBot(i, j, this, speed_Snarl);
+      case Level::vert_snarlbot:
+        //   break;
+        // case Level::kleptobot_factory:
+        //   break;
+        // case Level::angry_kleptobot_factory:
+        //   break;
+      default:
+        break;
       }
-    return 1;
+      addActor(tmp);
+    }
+  return 1;
 }
 
 int StudentWorld::move()
 {
+  if(tick >= 5000)
+    tick = 0;
+  else
+    tick++;
+
+  if(e->isAlive())
+    e->doSomething();
+  else{
+    playSound(SOUND_FINISHED_LEVEL);
+    increaseScore(bonus);
+    return GWSTATUS_FINISHED_LEVEL;
+  }
+
   if(p->isAlive())
     p->doSomething();
-  list<Actor*>::iterator iter = objects.begin();
-  while(iter != objects.end())
+  else{
+    decLives();
+    playSound(SOUND_PLAYER_DIE);
+    return GWSTATUS_PLAYER_DIED;
+  }
+
+
+  list<Actor*>::iterator iterO = objects.begin();
+  while(iterO != objects.end())
     {
-      if(!(*iter)->isAlive())
+      if(!(*iterO)->isAlive())
         {
-          delete *iter;
-          iter = objects.erase(iter);
+          delete *iterO;
+          iterO = objects.erase(iterO);
         }
       else
         {
-          (*iter)->doSomething();
-          iter++;
+          (*iterO)->doSomething();
+          iterO++;
         }
     }
+  list<Robot*>::iterator iterT = timer.begin();
+  while(iterT != timer.end())
+    {
+      if(!(*iterT)->isAlive())
+        {
+          delete *iterT;
+          iterT = timer.erase(iterT);
+        }
+      else
+        {
+          (*iterT)->doSomething(tick);
+          iterT++;
+        }
+    }
+
+  if(bonus > 0)
+    bonus--;
+  ostringstream tmpS;
+  tmpS << "Score: ";
+  tmpS.fill('0');
+  tmpS << setw(7) << getScore() << "  Level: "
+       << setw(2) << getLevel() << "  Lives: ";
+  tmpS.fill(' ');
+  tmpS << setw(2) << getLives() << "  Health: "
+       << setw(3) << (p->getHealth() * 100 / 20) << "%  Ammo: "
+       << setw(3) << p->getAmmo() << "  Bonus: "
+       << setw(4) << bonus;
+  string s = tmpS.str();
+  setGameStatText(s);
+
   return GWSTATUS_CONTINUE_GAME;
 }
 
@@ -162,8 +286,20 @@ void StudentWorld::cleanUp()
   //     delete *q;
   // delete p;
 
-  for(list<Actor*>::iterator q = objects.begin(); q != objects.end(); q++)
+  list<Actor*>::iterator q = objects.begin();
+  while(q != objects.end()){
     delete *q;
+    q = objects.erase(q);
+  }
+
+  for(int i = 0; i < 15; i++)
+    for(int j = 0; j < 15; j++)
+      map[i][j] = nullptr;
+
+  delete p;
+  p = nullptr;
+  delete e;
+  e = nullptr;
 }
 
 
