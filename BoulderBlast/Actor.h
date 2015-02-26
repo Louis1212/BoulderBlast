@@ -48,7 +48,7 @@ private:
 class Wall: public Object
 {
 public:
-  Wall(int x, int y, StudentWorld* ptr);
+  Wall(int x, int y, StudentWorld* ptr, int id = IID_WALL);
 private:
 
 };
@@ -77,7 +77,6 @@ public:
   bool fill(int x, int y);
   virtual void doSomething();
 private:
-
 };
 
 //----------Hole Class----------
@@ -102,6 +101,7 @@ class Collectable: public Object
 public:
   Collectable(int x, int y, int id, StudentWorld* ptr);
   virtual void collected();
+  virtual void doSomething();
 };
 
 
@@ -152,6 +152,8 @@ public:
   bool shouldMove(int tick);
   bool shouldFire(Player* p);
   virtual void doSomething(int tick); // moves until blocked
+  virtual void die();
+  virtual void fire(int sound = SOUND_ENEMY_FIRE);
   virtual ~Robot();
 private:
   int speed_recip;
@@ -162,17 +164,59 @@ class SnarlBot: public Robot
 {
 public:
   SnarlBot(int x, int y, StudentWorld* ptr, int sr, Direction d);
-  virtual void fire(int sound = SOUND_ENEMY_FIRE);
   virtual void doSomething();
   virtual void attacked(int blank);
   virtual void doSomething(int tick);
+  virtual void die();
 };
 
-//---------- Classs----------
-class SnarlBot: public Robot
+//----------KleptoBot Classs----------
+class KleptoBot: public Robot
 {
 public:
+  KleptoBot(int x, int y, StudentWorld* ptr, int sr, int id);
+  // doesn't set Health
+  ~KleptoBot();
+  virtual void doSomething();
+  // doesn't time;
+  virtual void randDirection();
+  virtual bool isEnclosed(int& x, int& y);
+  virtual bool pickUp(int x, int y);
+  virtual void die();
+private:
+  int turnUntil;
+  Collectable* picked;
+};
 
+//----------Normal_KleptoBot Classs----------
+class Normal_KleptoBot: public KleptoBot
+{
+public:
+  Normal_KleptoBot(int x, int y, StudentWorld* ptr, int sr);
+  virtual void doSomething(int tick);
+  virtual void die();
+};
+
+//----------Angry_KleptoBot Classs----------
+class Angry_KleptoBot: public KleptoBot
+{
+public:
+  Angry_KleptoBot(int x, int y, StudentWorld* ptr, int sr);
+  virtual void doSomething(int tick);
+  virtual void die();
 }
+
+//----------KleptoBot_Factory Classs----------
+class KleptoBot_Factory: public Wall
+{
+public:
+  KleptoBot_Factory(int x, int y, StudentWorld* ptr, int sr, bool angry = false);
+  virtual void doSomething();
+  virtual bool shouldCreate();
+private:
+  int speed;
+  bool isAngry;
+};
+
 
 #endif // ACTOR_H_

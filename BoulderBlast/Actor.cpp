@@ -59,7 +59,8 @@ bool Character::moveNMark(int ox, int oy, bool isBoulder)
     }
   }
   if(getWorld()->isWalkable(ox, oy)){
-    if(isBoulder && getWorld()->isEmpty(ox, oy))
+    if(isBoulder &&
+       (!getWorld()->isEmpty(ox, oy) || getWorld()->isExit(ox, oy) ) )
         return false;
     getWorld()->update(ox, oy, this);
     if(getWorld()->getActor(getX(), getY()) == this )
@@ -120,8 +121,8 @@ Character::~Character()
 {return;}
 
 //----------Wall----------
-Wall::Wall(int x, int y, StudentWorld* ptr)
-  :Object(x, y, IID_WALL, ptr){}
+Wall::Wall(int x, int y, StudentWorld* ptr, int id)
+  :Object(x, y, id, ptr){}
 
 //----------Player----------
 Player::Player(int x, int y, StudentWorld* ptr)
@@ -352,6 +353,11 @@ void Collectable::collected()
   getWorld()->playSound(SOUND_GOT_GOODIE);
 }
 
+void Collectable::doSomething()
+{
+  if(getWorld()->isWalkable(getX(), getY()))
+    getWorld()->update(getX(), getY(), this);
+}
 
 //----------Jewel----------
 Jewel::Jewel(int x, int y, StudentWorld* ptr)
@@ -394,6 +400,11 @@ void Exit::doSomething()
 Robot::Robot(int x, int y, StudentWorld* ptr, int id, Direction d, int sr)
   :Character(x, y, 10, id, ptr, d), speed_recip(sr){}
 
+void Robot::die()
+{
+  getWorld()->playSound(SOUND_ROBOT_DIE);
+}
+
 Robot::~Robot()
 {return;}
 
@@ -424,6 +435,11 @@ void Robot::doSomething(int tick)
 bool Robot::shouldMove(int tick)
 {
   return (tick % speed_recip == 0);
+}
+
+void Robot::fire(int sound)
+{
+  Character::fire(sound);
 }
 
 bool Robot::shouldFire(Player* p1)
@@ -469,17 +485,18 @@ bool Robot::shouldFire(Player* p1)
 SnarlBot::SnarlBot(int x, int y, StudentWorld* ptr, int sr, Direction d)
   :Robot(x, y, ptr, IID_SNARLBOT, d, sr) {}
 
-void SnarlBot::fire(int sound)
-{
-  Character::fire(sound);
-}
-
 void SnarlBot::doSomething()
 {return;}
 
 void SnarlBot::attacked(int blank)
 {
   Character::attacked(SOUND_ROBOT_IMPACT);
+}
+
+void SnarlBot::die()
+{
+  Robot::die();
+  getWorld()->increaseScore(100);
 }
 
 void SnarlBot::doSomething(int tick)
@@ -493,4 +510,214 @@ void SnarlBot::doSomething(int tick)
   }
 
   Robot::doSomething(tick);
+}
+
+//----------KleptoBot----------
+
+KleptoBot::KleptoBot(int x, int y, StudentWorld* ptr, int sr, int id)
+  :Robot(x, y, ptr, id, right, sr), turnUntil((rand() % 5) + 1),
+   picked(nullptr){}
+
+KleptoBot::~KleptoBot()
+{
+  if(isAlive())
+    if(picked != nullptr)
+      delete picked;
+}
+
+void KleptoBot::randDirection()
+{
+  switch(rand() % 4){
+  case 0:
+    setDirection(up);
+    break;
+  case 1:
+    setDirection(down);
+  case 2:
+    setDirection(left);
+  case(3):
+    setDirection(right);
+  }
+}
+
+bool KleptoBot::isEnclosed(int& x, int& y)
+{
+  if(getWorld()->isWalkable(getX()+1, getY())){
+    x++;
+    return true;
+  }
+  else if(getWorld()->isWalkable(getX()-1, getY())){
+    x--;
+    return true;
+  }
+  else if(getWorld()->isWalkable(getX(), getY()+1)){
+    y++;
+    return true;
+  }
+  else if(getWorld()->isWalkable(getX(), getY()-1)){
+    y--;
+    return true;
+  }
+  else
+    return false;
+}
+
+bool KleptoBot::pickUp(int x, int y)
+{
+  if(rand() % 10 != 0 || picked != nullptr)
+    return false;
+  Ammo* a = dynamic_cast<Ammo*>
+    (getWorld()->getActor(x, y));
+  Extra_life* e = dynamic_cast<Extra_life*>
+    (getWorld()->getActor(x, y));
+  Restore_health* h = dynamic_cast<Restore_health*>
+    (getWorld()->getActor(x, y));
+
+  if(a != nullptr){
+    a->setDead();
+    getWorld()->playSound(SOUND_ROBOT_MUNCH);
+    picked = new Ammo(x, y, getWorld());
+    picked->setVisible(false);
+    return true;
+  }
+  else if(e != nullptr){
+    e->setDead();
+    getWorld()->playSound(SOUND_ROBOT_MUNCH);
+    picked = new Extra_life(x, y, getWorld());
+    picked->setVisible(false);
+    return true;
+  }
+  else if(h != nullptr){
+    h->setDead();
+    getWorld()->playSound(SOUND_ROBOT_MUNCH);
+    picked = new Restore_health(x, y, getWorld());
+    picked->setVisible(false);
+    return true;
+  }
+  return false;
+}
+
+void KleptoBot::die()
+{
+  Robot::die();
+  if(picked != nullptr)
+    getWorld()->addActor(picked);
+}
+
+void KleptoBot::doSomething()
+{
+  if(pickUp(getX(), getY()))
+    return;
+
+  if(turnUntil == 0){
+    randDirection();
+    turnUntil = (rand() % 5) + 1;
+  }
+  turnUntil--;
+
+  int ox = getX();
+  int oy = getY();
+  Direction d0 = getDirection();
+  switch(d0){
+  case up:
+    oy++;
+    break;
+  case down:
+    oy--;
+    break;
+  case left:
+    ox--;
+    break;
+  case right:
+    ox++;
+    break;
+  default:
+    break;
+  }
+  if(getWorld()->isWalkable(ox, oy))
+    moveNMark(ox, oy);
+  else{
+    randDirection();
+    turnUntil = (rand() % 5) + 1;
+    if(isEnclosed(ox, oy))
+      return;
+    else
+      moveNMark(ox, oy);
+  }
+}
+
+//----------Normal_KleptoBot----------
+Normal_KleptoBot::Normal_KleptoBot(int x, int y, StudentWorld* ptr, int sr)
+  :KleptoBot(x, y, ptr, sr, IID_KLEPTOBOT){ setHealth(5); }
+
+void Normal_KleptoBot::doSomething(int tick)
+{
+  if(!shouldMove(tick))
+    return;
+  KleptoBot::doSomething();
+}
+
+void Normal_KleptoBot::die()
+{
+  KleptoBot::die();
+  getWorld()->increaseScore(10);
+}
+
+//----------Angry_KleptoBot----------
+
+Angry_KleptoBot::Angry_KleptoBot(int x, int y, StudentWorld* ptr, int sr)
+  :KleptoBot(x, y, ptr, sr, IID_ANGRY_KLEPTOBOT) { setHealth(8); }
+
+void Angry_KleptoBot::doSomething(int tick)
+{
+  if(!shouldMove(tick))
+    return;
+  if(shouldFire(getWorld()->getPlayer())){
+    fire();
+    return;
+  }
+  KleptoBot::doSomething();
+}
+
+void Angry_KleptoBot::die()
+{
+  KleptoBot::die();
+  getWorld()->increaseScore(20);
+}
+
+//----------KleptoBot_Factory----------
+KleptoBot_Factory::KleptoBot_Factory(int x, int y, StudentWorld* ptr,
+                                     int sr, bool isAngry)
+  :Wall(x, y, ptr, IID_ROBOT_FACTORY), speed(sr), isAngry(angry){}
+
+void KleptoBot_Factory::doSomething()
+{
+  if(!getWorld()->isBlocked(getX(), getY()))
+    getWorld()->update(getX(), getY(), this);
+
+  if(rand() % 50 != 0 )
+    return;
+  if(shouldCreate()){
+    getWorld()->playSound(SOUND_ROBOT_BORN);
+    if(!isAngry)
+      getWorld()->addActor( new Normal_KleptoBot(getX(), getY(), getWorld(), speed) );
+    else
+      getWorld()->addActor( new Angry_KleptoBot(getX(), getY(), getWorld(), speed) );
+  }
+}
+
+bool KleptoBot_Factory::shouldCreate()
+{
+  int up = ( (getY() + 3) > 14 ) ? 14 : (getY() + 3);
+  int down = ( (getY() - 3) > 0 ) ? (getY() - 3) : 0;
+  int right = ( (getX() + 3) > 14 ) ? 14 : (getY() + 3);
+  int left = ( (getX() - 3) > 0 ) ? (getY()  3) : 0;
+
+  int count = 0;
+  for(int i = down; i <= up; i++)
+    for(int j = left; j <= right; j++)
+      if(getWorld()->isKleptoBot(i, j))
+        count++;
+
+  return (count < 3);
 }

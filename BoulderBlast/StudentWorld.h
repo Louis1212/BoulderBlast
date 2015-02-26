@@ -27,6 +27,7 @@ public:
   virtual bool isEmpty(int x, int y);
   virtual bool isWalkable(int x, int y);
   virtual bool isBlocked(int x, int y);
+  virtual bool isKleptoBot(int x, int y);
   virtual Actor* getActor(int x, int y);
   virtual void addActor(Actor* a, bool ifUpdate = true);
   virtual bool isComplete();

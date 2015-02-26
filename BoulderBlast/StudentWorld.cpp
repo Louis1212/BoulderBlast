@@ -22,7 +22,7 @@ using namespace std;
 
 
 StudentWorld::StudentWorld(std::string assetDir)
-  :GameWorld(assetDir), bonus(1000), p(nullptr), e(nullptr), tick(0)
+  :GameWorld(assetDir), p(nullptr), e(nullptr), tick(0)
 {
   map.resize(15);
   for(int i = 0; i < 15; i++)
@@ -87,6 +87,12 @@ bool StudentWorld::isBlocked(int x, int y)
   return (c != nullptr || w != nullptr);
 }
 
+bool StudentWorld::isKleptoBot(int x, int y)
+{
+  KleptoBot* k = dynamic_cast<KleptoBot*>(map[x][y]);
+  return (k != nullptr);
+}
+
 Actor* StudentWorld::getActor(int x, int y)
 {
   return map[x][y];
@@ -138,6 +144,7 @@ bool StudentWorld::isComplete()
 
 int StudentWorld::init()
 {
+  bonus = 1000;
   ostringstream tempS;
   tempS << "level";
   tempS.fill('0');
@@ -175,7 +182,6 @@ int StudentWorld::init()
         break;
       case Level::exit:
         e = new Exit(i,j,this);
-        update(i,j, e);
         break;
       case Level::jewel:
         tmp = new Jewel(i, j, this);
@@ -197,11 +203,11 @@ int StudentWorld::init()
       case Level::vert_snarlbot:
         tmp = new SnarlBot(i, j, this, speed_Snarl, Actor::down);
         break;
-        //   break;
-        // case Level::kleptobot_factory:
-        //   break;
-        // case Level::angry_kleptobot_factory:
-        //   break;
+      case Level::kleptobot_factory:
+        tmp = new KleptoBot_Factory(i, j, this, speed_Snarl);
+        break;
+      case Level::angry_kleptobot_factory:
+        tmp = new KleptoBot_Factory(i, j, this, speed_Snarl, true);
       default:
         break;
       }
@@ -232,7 +238,23 @@ int StudentWorld::move()
     playSound(SOUND_PLAYER_DIE);
     return GWSTATUS_PLAYER_DIED;
   }
-
+  // let the robot move first, then the objects may update their position
+  // before the player move/step on them
+  list<Robot*>::iterator iterT = timer.begin();
+  while(iterT != timer.end())
+    {
+      if(!(*iterT)->isAlive())
+        {
+          (*iterT)->die();
+          delete *iterT;
+          iterT = timer.erase(iterT);
+        }
+      else
+        {
+          (*iterT)->doSomething(tick);
+          iterT++;
+        }
+    }
 
   list<Actor*>::iterator iterO = objects.begin();
   while(iterO != objects.end())
@@ -246,20 +268,6 @@ int StudentWorld::move()
         {
           (*iterO)->doSomething();
           iterO++;
-        }
-    }
-  list<Robot*>::iterator iterT = timer.begin();
-  while(iterT != timer.end())
-    {
-      if(!(*iterT)->isAlive())
-        {
-          delete *iterT;
-          iterT = timer.erase(iterT);
-        }
-      else
-        {
-          (*iterT)->doSomething(tick);
-          iterT++;
         }
     }
 
