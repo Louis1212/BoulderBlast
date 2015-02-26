@@ -101,7 +101,6 @@ class Collectable: public Object
 public:
   Collectable(int x, int y, int id, StudentWorld* ptr);
   virtual void collected();
-  virtual void doSomething();
 };
 
 
@@ -204,7 +203,7 @@ public:
   Angry_KleptoBot(int x, int y, StudentWorld* ptr, int sr);
   virtual void doSomething(int tick);
   virtual void die();
-}
+};
 
 //----------KleptoBot_Factory Classs----------
 class KleptoBot_Factory: public Wall

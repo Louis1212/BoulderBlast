@@ -23,12 +23,14 @@ public:
   virtual int move();
   virtual void cleanUp();
   virtual void update(int x, int y, Actor* ptrA);
-  virtual void deUpdate(int x, int y);
+  virtual void deUpdate_character(int x, int y);
+  virtual void deUpdate_collectable(int x, int y);
   virtual bool isEmpty(int x, int y);
   virtual bool isWalkable(int x, int y);
   virtual bool isBlocked(int x, int y);
   virtual bool isKleptoBot(int x, int y);
   virtual Actor* getActor(int x, int y);
+  virtual Actor* getCollectable(int x, int y);
   virtual void addActor(Actor* a, bool ifUpdate = true);
   virtual bool isComplete();
   virtual Exit* getExit();
@@ -42,7 +44,8 @@ private:
   Exit* e;
   list<Actor*> objects;
   list<Robot*> timer;
-  vector< vector<Actor*> > map;
+  vector< vector<Actor*> > map_character;
+  vector< vector<Actor*> > map_collectable;
   int tick;
 };
 

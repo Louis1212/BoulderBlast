@@ -64,7 +64,7 @@ bool Character::moveNMark(int ox, int oy, bool isBoulder)
         return false;
     getWorld()->update(ox, oy, this);
     if(getWorld()->getActor(getX(), getY()) == this )
-      getWorld()->deUpdate(getX(), getY());
+      getWorld()->deUpdate_character(getX(), getY());
     moveTo(ox, oy);
     return true;
   }
@@ -77,7 +77,7 @@ void Character::attacked(int sound)
   if(hitPoint <= 0)
     {
       this->setDead();
-      getWorld()->deUpdate(getX(), getY());
+      getWorld()->deUpdate_character(getX(), getY());
     }
   else
     getWorld()->playSound(sound);
@@ -175,30 +175,30 @@ void Player::attacked(int blank)
 void Player::pickUp(int x, int y)
 {
   Jewel* j = dynamic_cast<Jewel*>
-    (getWorld()->getActor(x, y));
+    (getWorld()->getCollectable(x, y));
   Ammo* a = dynamic_cast<Ammo*>
-    (getWorld()->getActor(x, y));
+    (getWorld()->getCollectable(x, y));
   Extra_life* l = dynamic_cast<Extra_life*>
-    (getWorld()->getActor(x, y));
+    (getWorld()->getCollectable(x, y));
   Restore_health* h = dynamic_cast<Restore_health*>
-    (getWorld()->getActor(x, y));
+    (getWorld()->getCollectable(x, y));
 
   if(j != nullptr){
     buff('J');
     j->collected();
-    getWorld()->deUpdate(x, y);
+    getWorld()->deUpdate_collectable(x, y);
   } else if(a != nullptr){
     buff('A');
     a->collected();
-    getWorld()->deUpdate(x, y);
+    getWorld()->deUpdate_collectable(x, y);
   } else if(l != nullptr){
     buff('L');
     l->collected();
-    getWorld()->deUpdate(x, y);
+    getWorld()->deUpdate_collectable(x, y);
   } else if(h != nullptr){
     buff('H');
     h->collected();
-    getWorld()->deUpdate(x, y);
+    getWorld()->deUpdate_collectable(x, y);
   } else if(getWorld()->isExit(x, y) &&
             getWorld()->getExit()->isRevealed()){
     buff('E');
@@ -238,6 +238,7 @@ void Player::doSomething()
   //temp version: can only move
   if(!isAlive())
     return;
+  pickUp(getX(), getY());
   int ch;
   int ox = getX();
   int oy = getY();
@@ -264,7 +265,6 @@ void Player::doSomething()
       break;
     }
     if(ox != getX() || oy != getY()){
-      pickUp(ox, oy);
       push(ox, oy);
       moveNMark(ox, oy);
     }
@@ -286,8 +286,8 @@ bool Boulder::fill(int x, int y)
     // after a tick;
     h->setDead();
     this->setDead();
-    getWorld()->deUpdate(x,y);
-    getWorld()->deUpdate(getX(), getY());
+    getWorld()->deUpdate_character(x,y);
+    getWorld()->deUpdate_character(getX(), getY());
     return true;
   }
   return false;
@@ -351,12 +351,6 @@ void Collectable::collected()
 {
   setDead();
   getWorld()->playSound(SOUND_GOT_GOODIE);
-}
-
-void Collectable::doSomething()
-{
-  if(getWorld()->isWalkable(getX(), getY()))
-    getWorld()->update(getX(), getY(), this);
 }
 
 //----------Jewel----------
@@ -533,10 +527,13 @@ void KleptoBot::randDirection()
     break;
   case 1:
     setDirection(down);
+    break;
   case 2:
     setDirection(left);
+    break;
   case(3):
     setDirection(right);
+    break;
   }
 }
 
@@ -544,22 +541,22 @@ bool KleptoBot::isEnclosed(int& x, int& y)
 {
   if(getWorld()->isWalkable(getX()+1, getY())){
     x++;
-    return true;
+    return false;
   }
   else if(getWorld()->isWalkable(getX()-1, getY())){
     x--;
-    return true;
+    return false;
   }
   else if(getWorld()->isWalkable(getX(), getY()+1)){
     y++;
-    return true;
+    return false;
   }
   else if(getWorld()->isWalkable(getX(), getY()-1)){
     y--;
-    return true;
+    return false;
   }
   else
-    return false;
+    return true;
 }
 
 bool KleptoBot::pickUp(int x, int y)
@@ -567,15 +564,16 @@ bool KleptoBot::pickUp(int x, int y)
   if(rand() % 10 != 0 || picked != nullptr)
     return false;
   Ammo* a = dynamic_cast<Ammo*>
-    (getWorld()->getActor(x, y));
+    (getWorld()->getCollectable(x, y));
   Extra_life* e = dynamic_cast<Extra_life*>
-    (getWorld()->getActor(x, y));
+    (getWorld()->getCollectable(x, y));
   Restore_health* h = dynamic_cast<Restore_health*>
-    (getWorld()->getActor(x, y));
+    (getWorld()->getCollectable(x, y));
 
   if(a != nullptr){
     a->setDead();
     getWorld()->playSound(SOUND_ROBOT_MUNCH);
+    getWorld()->deUpdate_collectable(x, y);
     picked = new Ammo(x, y, getWorld());
     picked->setVisible(false);
     return true;
@@ -583,6 +581,7 @@ bool KleptoBot::pickUp(int x, int y)
   else if(e != nullptr){
     e->setDead();
     getWorld()->playSound(SOUND_ROBOT_MUNCH);
+    getWorld()->deUpdate_collectable(x, y);
     picked = new Extra_life(x, y, getWorld());
     picked->setVisible(false);
     return true;
@@ -590,6 +589,7 @@ bool KleptoBot::pickUp(int x, int y)
   else if(h != nullptr){
     h->setDead();
     getWorld()->playSound(SOUND_ROBOT_MUNCH);
+    getWorld()->deUpdate_collectable(x, y);
     picked = new Restore_health(x, y, getWorld());
     picked->setVisible(false);
     return true;
@@ -600,20 +600,27 @@ bool KleptoBot::pickUp(int x, int y)
 void KleptoBot::die()
 {
   Robot::die();
-  if(picked != nullptr)
-    getWorld()->addActor(picked);
+  if(picked != nullptr){
+    if(getWorld()->isEmpty(getX(), getY())){
+      picked->moveTo(getX(), getY());
+      getWorld()->addActor(picked);
+      picked->setVisible(true);
+    }
+    else
+      delete picked;
+  }
 }
 
 void KleptoBot::doSomething()
 {
-  if(pickUp(getX(), getY()))
-    return;
-
   if(turnUntil == 0){
     randDirection();
     turnUntil = (rand() % 5) + 1;
   }
   turnUntil--;
+
+  if(pickUp(getX(), getY()))
+    return;
 
   int ox = getX();
   int oy = getY();
@@ -634,15 +641,21 @@ void KleptoBot::doSomething()
   default:
     break;
   }
-  if(getWorld()->isWalkable(ox, oy))
+  if(getWorld()->isWalkable(ox, oy)){
     moveNMark(ox, oy);
+    turnUntil--;
+  }
   else{
     randDirection();
+    ox = getX();
+    oy = getY();
     turnUntil = (rand() % 5) + 1;
     if(isEnclosed(ox, oy))
       return;
-    else
+    else{
       moveNMark(ox, oy);
+       turnUntil--;
+    }
   }
 }
 
@@ -687,12 +700,12 @@ void Angry_KleptoBot::die()
 
 //----------KleptoBot_Factory----------
 KleptoBot_Factory::KleptoBot_Factory(int x, int y, StudentWorld* ptr,
-                                     int sr, bool isAngry)
+                                     int sr, bool angry)
   :Wall(x, y, ptr, IID_ROBOT_FACTORY), speed(sr), isAngry(angry){}
 
 void KleptoBot_Factory::doSomething()
 {
-  if(!getWorld()->isBlocked(getX(), getY()))
+  if(getWorld()->isWalkable(getX(), getY()))
     getWorld()->update(getX(), getY(), this);
 
   if(rand() % 50 != 0 )
@@ -708,15 +721,17 @@ void KleptoBot_Factory::doSomething()
 
 bool KleptoBot_Factory::shouldCreate()
 {
+  if(getWorld()->isKleptoBot(getX(), getY()))
+    return false;
   int up = ( (getY() + 3) > 14 ) ? 14 : (getY() + 3);
   int down = ( (getY() - 3) > 0 ) ? (getY() - 3) : 0;
-  int right = ( (getX() + 3) > 14 ) ? 14 : (getY() + 3);
-  int left = ( (getX() - 3) > 0 ) ? (getY()  3) : 0;
+  int right = ( (getX() + 3) > 14 ) ? 14 : (getX() + 3);
+  int left = ( (getX() - 3) > 0 ) ? (getX() - 3) : 0;
 
   int count = 0;
   for(int i = down; i <= up; i++)
     for(int j = left; j <= right; j++)
-      if(getWorld()->isKleptoBot(i, j))
+      if(getWorld()->isKleptoBot(j, i))
         count++;
 
   return (count < 3);

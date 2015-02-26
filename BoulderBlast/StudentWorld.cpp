@@ -24,12 +24,20 @@ using namespace std;
 StudentWorld::StudentWorld(std::string assetDir)
   :GameWorld(assetDir), p(nullptr), e(nullptr), tick(0)
 {
-  map.resize(15);
+  map_character.resize(15);
   for(int i = 0; i < 15; i++)
-    map[i].resize(15);
+    map_character[i].resize(15);
   for(int i = 0; i < 15; i++)
     for(int j = 0; j < 15; j++)
-      map[i][j] = nullptr;
+      map_character[i][j] = nullptr;
+
+  map_collectable.resize(15);
+  for(int i = 0; i < 15; i++)
+    map_collectable[i].resize(15);
+  for(int i = 0; i < 15; i++)
+    for(int j = 0; j < 15; j++)
+      map_collectable[i][j] = nullptr;
+
 }
 
 StudentWorld::~StudentWorld()
@@ -50,52 +58,60 @@ StudentWorld::~StudentWorld()
   e = nullptr;
 }
 
-void StudentWorld::update(int x, int y, Actor* ptrA) // update on the map it's location.
+void StudentWorld::update(int x, int y, Actor* ptrA)
 {
-  map[x][y] = ptrA;
+  Collectable* c = dynamic_cast<Collectable*>(ptrA);
+  if(c != nullptr)
+    map_collectable[x][y] = ptrA;
+  else
+    map_character[x][y] = ptrA;
 }
 
-void StudentWorld::deUpdate(int x, int y)
+void StudentWorld::deUpdate_character(int x, int y)
 {
-  map[x][y] = nullptr;
+  map_character[x][y] = nullptr;
+}
+
+void StudentWorld::deUpdate_collectable(int x, int y)
+{
+  map_collectable[x][y] = nullptr;
 }
 
 bool StudentWorld::isEmpty(int x, int y)
 {
   if(x >= 15 || y >= 15 || x < 0 || y < 0)
     return false;
-  return (map[x][y] == nullptr);
+  return (map_character[x][y] == nullptr &&
+          map_collectable[x][y] == nullptr);
 }
 
 bool StudentWorld::isWalkable(int x, int y)
 {
   if(x >= 15 || y >= 15 || x < 0 || y < 0)
     return false;
-  if(isBlocked(x, y))
-    return false;
-  Hole* h = dynamic_cast<Hole*>(map[x][y]);
-  return (h == nullptr);
+  return (map_character[x][y] == nullptr);
 }
 
 bool StudentWorld::isBlocked(int x, int y)
 {
-  if(x >= 15 || y >= 15 || x < 0 || y < 0)
-    return true;
-  Character* c = dynamic_cast<Character*>(map[x][y]);
-  Wall* w  = dynamic_cast<Wall*>(map[x][y]);
-
-  return (c != nullptr || w != nullptr);
+  Hole* h = dynamic_cast<Hole*>(map_character[x][y]);
+  return (h == nullptr && !isWalkable(x, y));
 }
 
 bool StudentWorld::isKleptoBot(int x, int y)
 {
-  KleptoBot* k = dynamic_cast<KleptoBot*>(map[x][y]);
+  KleptoBot* k = dynamic_cast<KleptoBot*>(map_character[x][y]);
   return (k != nullptr);
 }
 
 Actor* StudentWorld::getActor(int x, int y)
 {
-  return map[x][y];
+  return map_character[x][y];
+}
+
+Actor* StudentWorld::getCollectable(int x, int y)
+{
+  return map_collectable[x][y];
 }
 
 void StudentWorld::addActor(Actor* a, bool ifUpdate)
@@ -195,7 +211,8 @@ int StudentWorld::init()
       case Level::ammo:
         tmp = new Ammo(i, j, this);
       case Level::empty:
-        deUpdate(i, j);
+        deUpdate_character(i, j);
+        deUpdate_collectable(i,j );
         break;
       case Level::horiz_snarlbot:
         tmp = new SnarlBot(i, j, this, speed_Snarl, Actor::right);
@@ -291,8 +308,8 @@ int StudentWorld::move()
 
 void StudentWorld::cleanUp()
 {
-  // for(vector< vector<Actor*> >::iterator o = map.begin();
-  //     o != map.end(); o++)
+  // for(vector< vector<Actor*> >::iterator o = map_character.begin();
+  //     o != map_character.end(); o++)
   //   for(vector<Actor*>::iterator q = o->begin(); q != o->end(); o++)
   //     delete *q;
   // delete p;
@@ -310,7 +327,11 @@ void StudentWorld::cleanUp()
 
   for(int i = 0; i < 15; i++)
     for(int j = 0; j < 15; j++)
-      map[i][j] = nullptr;
+      map_character[i][j] = nullptr;
+
+  for(int i = 0; i < 15; i++)
+    for(int j = 0; j < 15; j++)
+      map_collectable[i][j] = nullptr;
 
   delete p;
   p = nullptr;
