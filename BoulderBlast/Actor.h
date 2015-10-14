@@ -9,7 +9,7 @@ class Actor: public GraphObject
 {
 public:
   Actor(int id, int x, int y, StudentWorld* ptr, Direction d = none);
-  virtual void doSomething()=0;
+  virtual void doSomething(); // do nothing
   bool isAlive();
   void setDead();
   StudentWorld* getWorld();
@@ -19,68 +19,26 @@ private:
   StudentWorld* world;
 };
 
-//----------Object Class----------
-class Object: public Actor
-{
-public:
-  Object(int x, int y, int id, StudentWorld* ptr);
-  virtual void doSomething();
-  virtual ~Object();
-};
-
-//----------Character Class----------
-class Character: public Actor
-{
-public:
-  Character(int x, int y, int points, int id,
-            StudentWorld* ptr, Direction d);
-  virtual bool moveNMark(int ox, int oy, bool isBoulder= false);
-  virtual void attacked(int sound);
-  virtual void fire(int sound);
-  virtual ~Character();
-  void setHealth(int p1);
-  int getHealth();
-private:
-  int hitPoint;
-};
-
 //----------Wall Class----------
-class Wall: public Object
+class Wall: public Actor
 {
 public:
   Wall(int x, int y, StudentWorld* ptr, int id = IID_WALL);
-private:
-
 };
 
-//----------Player Class----------
-class Player: public Character
+//----------KleptoBot_Factory Classs----------
+class KleptoBot_Factory: public Wall
 {
 public:
-  Player(int x, int y, StudentWorld* ptr);
+  KleptoBot_Factory(int x, int y, StudentWorld* ptr, bool angry = false);
   virtual void doSomething();
-  void push(int x, int y);
-  virtual void fire(int sound = SOUND_PLAYER_FIRE);
-  virtual void attacked(int blank);
-  void pickUp(int x, int y);
-  void buff(char c);
-  int getAmmo();
+  virtual bool shouldCreate();
 private:
-  int ammu;
-};
-
-//----------Boulder Class----------
-class Boulder: public Character
-{
-public:
-  Boulder(int x, int y, StudentWorld* ptr);
-  bool fill(int x, int y);
-  virtual void doSomething();
-private:
+  bool isAngry;
 };
 
 //----------Hole Class----------
-class Hole: public Object
+class Hole: public Actor
 {
 public:
   Hole(int x, int y, StudentWorld* ptr);
@@ -91,18 +49,18 @@ class Bullet: public Actor
 {
 public:
   Bullet(int x, int y, StudentWorld* ptr, Direction d);
-  void damage(int x, int y);
-  virtual void doSomething();
+  void damage(int x, int y); // check if Character
+  virtual void doSomething(); // check if blocked
 };
 
 //----------Collectable Class----------
-class Collectable: public Object
+class Collectable: public Actor
 {
 public:
   Collectable(int x, int y, int id, StudentWorld* ptr);
   virtual void collected();
+  virtual ~Collectable();
 };
-
 
 //----------Jewel Classs----------
 class Jewel: public Collectable
@@ -133,25 +91,65 @@ public:
 };
 
 //----------Exit Classs----------
-class Exit: public Actor
+class Exit: public Collectable
 {
 public:
   Exit(int x, int y, StudentWorld* ptr);
   virtual void doSomething();
   bool isRevealed();
- private:
+private:
   bool revealed;
+};
+
+//----------Character Class----------
+class Character: public Actor
+{
+public:
+  Character(int x, int y, int points, int id,
+            StudentWorld* ptr, Direction d = none);
+  virtual bool moveNMark(int ox, int oy, bool isBoulder= false);
+  // boulder has special bloking rules
+  virtual void attacked(int sound);
+  virtual void fire(int sound);
+  virtual ~Character();
+  void setHealth(int p1);
+  int getHealth();
+private:
+  int hitPoint;
+};
+
+//----------Player Class----------
+class Player: public Character
+{
+public:
+  Player(int x, int y, StudentWorld* ptr);
+  virtual void doSomething();
+  virtual void fire(int sound = SOUND_PLAYER_FIRE);
+  virtual void attacked(int blank);
+  void push(int x, int y);
+  void pickUp(int x, int y);
+  void buff(char c);
+  int getAmmo();
+private:
+  int ammu;
+};
+
+//----------Boulder Class----------
+class Boulder: public Character
+{
+public:
+  Boulder(int x, int y, StudentWorld* ptr);
+  bool fill(int x, int y);
 };
 
 //----------Robot Classs----------
 class Robot: public Character
 {
 public:
-  Robot(int x, int y, StudentWorld* ptr, int id, Direction d, int sr);
+  Robot(int x, int y, StudentWorld* ptr, int id, Direction d);
   bool shouldMove(int tick);
   bool shouldFire(Player* p);
-  virtual void doSomething(int tick); // moves until blocked
-  virtual void die();
+  virtual void attacked(int blank);
   virtual void fire(int sound = SOUND_ENEMY_FIRE);
   virtual ~Robot();
 private:
@@ -162,26 +160,23 @@ private:
 class SnarlBot: public Robot
 {
 public:
-  SnarlBot(int x, int y, StudentWorld* ptr, int sr, Direction d);
+  SnarlBot(int x, int y, StudentWorld* ptr, Direction d);
   virtual void doSomething();
-  virtual void attacked(int blank);
-  virtual void doSomething(int tick);
-  virtual void die();
+  virtual ~SnarlBot();
 };
 
 //----------KleptoBot Classs----------
 class KleptoBot: public Robot
 {
 public:
-  KleptoBot(int x, int y, StudentWorld* ptr, int sr, int id);
+  KleptoBot(int x, int y, StudentWorld* ptr, int id);
   // doesn't set Health
-  ~KleptoBot();
   virtual void doSomething();
   // doesn't time;
   virtual void randDirection();
   virtual bool isEnclosed(int& x, int& y);
   virtual bool pickUp(int x, int y);
-  virtual void die();
+  virtual ~KleptoBot();
 private:
   int turnUntil;
   Collectable* picked;
@@ -191,31 +186,18 @@ private:
 class Normal_KleptoBot: public KleptoBot
 {
 public:
-  Normal_KleptoBot(int x, int y, StudentWorld* ptr, int sr);
-  virtual void doSomething(int tick);
-  virtual void die();
+  Normal_KleptoBot(int x, int y, StudentWorld* ptr);
+  virtual void doSomething();
+  virtual ~Normal_KleptoBot();
 };
 
 //----------Angry_KleptoBot Classs----------
 class Angry_KleptoBot: public KleptoBot
 {
 public:
-  Angry_KleptoBot(int x, int y, StudentWorld* ptr, int sr);
-  virtual void doSomething(int tick);
-  virtual void die();
-};
-
-//----------KleptoBot_Factory Classs----------
-class KleptoBot_Factory: public Wall
-{
-public:
-  KleptoBot_Factory(int x, int y, StudentWorld* ptr, int sr, bool angry = false);
+  Angry_KleptoBot(int x, int y, StudentWorld* ptr);
   virtual void doSomething();
-  virtual bool shouldCreate();
-private:
-  int speed;
-  bool isAngry;
+  virtual ~Angry_KleptoBot();
 };
-
 
 #endif // ACTOR_H_

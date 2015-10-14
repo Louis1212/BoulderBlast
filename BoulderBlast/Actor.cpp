@@ -9,6 +9,9 @@ Actor::Actor(int id, int x, int y, StudentWorld* ptr, Direction d)
   :GraphObject(id, x, y, d),
    isDead(false), world(ptr) {setVisible(true);}
 
+void Actor::doSomething()
+{return;}
+
 bool Actor::isAlive()
 {return !isDead;}
 
@@ -21,284 +24,54 @@ StudentWorld* Actor::getWorld()
 Actor::~Actor()
 {return;}
 
-//----------Object----------
-Object::Object(int x, int y, int id, StudentWorld* ptr)
-  :Actor(id, x, y, ptr){}
-
-void Object::doSomething()
-{return;}
-
-Object::~Object()
-{return;}
-
-//----------Character----------
-Character::Character(int x, int y, int points, int id,
-                     StudentWorld* ptr, Direction d = none)
-  :Actor(id, x, y, ptr, d), hitPoint(points){}
-
-
-bool Character::moveNMark(int ox, int oy, bool isBoulder)
-{
-  if(getDirection() != none){
-    int n = (getX() - ox) + (getY() - oy) * 3;
-    switch(n){
-    case 1:
-      setDirection(left);
-      break;
-    case -1:
-      setDirection(right);
-      break;
-    case 3:
-      setDirection(down);
-      break;
-    case -3:
-      setDirection(up);
-      break;
-    default:
-      break;
-    }
-  }
-  if(getWorld()->isWalkable(ox, oy)){
-    if(isBoulder &&
-       (!getWorld()->isEmpty(ox, oy) || getWorld()->isExit(ox, oy) ) )
-        return false;
-    getWorld()->update(ox, oy, this);
-    if(getWorld()->getActor(getX(), getY()) == this )
-      getWorld()->deUpdate_character(getX(), getY());
-    moveTo(ox, oy);
-    return true;
-  }
-  return false;
-}
-
-void Character::attacked(int sound)
-{
-  hitPoint -= 2;
-  if(hitPoint <= 0)
-    {
-      this->setDead();
-      getWorld()->deUpdate_character(getX(), getY());
-    }
-  else
-    getWorld()->playSound(sound);
-}
-
-void Character::setHealth(int p)
-{hitPoint = p;}
-
-int Character::getHealth()
-{return hitPoint;}
-
-void Character::fire(int sound)
-{
-  int x = getX();
-  int y = getY();
-  Direction d = getDirection();
-  switch(d)
-    {
-    case up:
-      y += 1;
-      break;
-    case down:
-      y -= 1;
-      break;
-    case right:
-      x += 1;
-      break;
-    case left:
-      x -= 1;
-      break;
-    default:
-      break;
-    }
-
-  getWorld()->playSound(sound);
-  Bullet* tmp = new Bullet(x, y, getWorld(), d);
-  getWorld()->addActor(tmp, false);
-}
-
-Character::~Character()
-{return;}
-
 //----------Wall----------
 Wall::Wall(int x, int y, StudentWorld* ptr, int id)
-  :Object(x, y, id, ptr){}
+  :Actor(id, x, y, ptr){}
 
-//----------Player----------
-Player::Player(int x, int y, StudentWorld* ptr)
-  :Character(x, y, 20, IID_PLAYER, ptr, right),
-   ammu(20){}
+//----------KleptoBot_Factory----------
+KleptoBot_Factory::KleptoBot_Factory(int x, int y,
+                                     StudentWorld* ptr, bool angry)
+  :Wall(x, y, ptr, IID_ROBOT_FACTORY), isAngry(angry){}
 
-void Player::push(int x, int y)
+void KleptoBot_Factory::doSomething()
 {
-  Boulder* b = dynamic_cast<Boulder*>( getWorld()->getActor(x, y) );
-  if (b != nullptr)
-    {
-      int n = (getX() - x) + (getY() - y) * 3;
-      switch(n)
-        {
-        case 1:
-          if( !b->fill(x-1, y) )
-            b->moveNMark(x-1, y, true);
-          break;
-        case -1:
-          if( !b->fill(x+1, y) )
-            b->moveNMark(x+1, y, true);
-          break;
-        case 3:
-          if( !b->fill(x, y-1) )
-            b->moveNMark(x, y-1, true);
-          break;
-        case -3:
-          if( !b->fill(x, y+1) )
-            b->moveNMark(x, y+1, true);
-          break;
-        default:
-          break;
-        }
-    }
-}
-
-void Player::fire(int sound)
-{
-  if(ammu <= 0)
+  // update location when no KleptoBot are on the Factory
+  if(getWorld()->isWalkable(getX(), getY()))
+    getWorld()->update(getX(), getY(), this);
+  // the 1/50 chance
+  if((rand() % 50) != 0 )
     return;
-  ammu--;
-  Character::fire(sound);
-}
-
-void Player::attacked(int blank)
-{
-  Character::attacked(SOUND_PLAYER_IMPACT);
-}
-
-void Player::pickUp(int x, int y)
-{
-  Jewel* j = dynamic_cast<Jewel*>
-    (getWorld()->getCollectable(x, y));
-  Ammo* a = dynamic_cast<Ammo*>
-    (getWorld()->getCollectable(x, y));
-  Extra_life* l = dynamic_cast<Extra_life*>
-    (getWorld()->getCollectable(x, y));
-  Restore_health* h = dynamic_cast<Restore_health*>
-    (getWorld()->getCollectable(x, y));
-
-  if(j != nullptr){
-    buff('J');
-    j->collected();
-    getWorld()->deUpdate_collectable(x, y);
-  } else if(a != nullptr){
-    buff('A');
-    a->collected();
-    getWorld()->deUpdate_collectable(x, y);
-  } else if(l != nullptr){
-    buff('L');
-    l->collected();
-    getWorld()->deUpdate_collectable(x, y);
-  } else if(h != nullptr){
-    buff('H');
-    h->collected();
-    getWorld()->deUpdate_collectable(x, y);
-  } else if(getWorld()->isExit(x, y) &&
-            getWorld()->getExit()->isRevealed()){
-    buff('E');
-    getWorld()->getExit()->setDead();
-  }
-}
-void Player::buff(char c)
-{
-  switch(c)
-    {
-    case 'J':
-      getWorld()->increaseScore(50);
-      break;
-    case 'A':
-      ammu += 20;
-      getWorld()->increaseScore(100);
-      break;
-    case 'L':
-      getWorld()->incLives();
-      getWorld()->increaseScore(1000);
-      break;
-    case 'H':
-      setHealth(20);
-      getWorld()->increaseScore(500);
-      break;
-    case 'E':
-      getWorld()->increaseScore(2000);
-      break;
-    default:
-      break;
-    }
-
-}
-
-void Player::doSomething()
-{
-  //temp version: can only move
-  if(!isAlive())
-    return;
-  pickUp(getX(), getY());
-  int ch;
-  int ox = getX();
-  int oy = getY();
-  if( getWorld()->getKey(ch) ){
-    switch(ch){
-    case KEY_PRESS_LEFT:
-      ox -= 1;
-      break;
-    case KEY_PRESS_RIGHT:
-      ox += 1;
-      break;
-    case KEY_PRESS_UP:
-      oy += 1;
-      break;
-    case KEY_PRESS_DOWN:
-      oy -= 1;
-      break;
-    case KEY_PRESS_SPACE:
-      fire();
-      break;
-    case KEY_PRESS_ESCAPE:
-      setDead();
-    default:
-      break;
-    }
-    if(ox != getX() || oy != getY()){
-      push(ox, oy);
-      moveNMark(ox, oy);
-    }
+  if(shouldCreate()){
+    getWorld()->playSound(SOUND_ROBOT_BORN);
+    if(!isAngry)
+      getWorld()->addActor( new Normal_KleptoBot(getX(), getY(), getWorld()) );
+    else
+      getWorld()->addActor( new Angry_KleptoBot(getX(), getY(), getWorld()) );
   }
 }
 
-int Player::getAmmo()
-{return ammu;}
-
-//----------Boulder----------
-Boulder::Boulder(int x, int y, StudentWorld* ptr)
-  :Character(x, y, 10, IID_BOULDER, ptr){}
-
-bool Boulder::fill(int x, int y)
+bool KleptoBot_Factory::shouldCreate()
 {
-  Hole* h = dynamic_cast<Hole*>(getWorld()->getActor(x,y));
-  if(h != nullptr){
-    //make them disappear first, and the dead body will be clean up
-    // after a tick;
-    h->setDead();
-    this->setDead();
-    getWorld()->deUpdate_character(x,y);
-    getWorld()->deUpdate_character(getX(), getY());
-    return true;
-  }
-  return false;
-}
+  if(getWorld()->isKleptoBot(getX(), getY()))
+    return false;
+  // get the 7*7 box
+  int up = ( (getY() + 3) > 14 ) ? 14 : (getY() + 3);
+  int down = ( (getY() - 3) > 0 ) ? (getY() - 3) : 0;
+  int right = ( (getX() + 3) > 14 ) ? 14 : (getX() + 3);
+  int left = ( (getX() - 3) > 0 ) ? (getX() - 3) : 0;
+  // count number of KleptoBots
+  int count = 0;
+  for(int i = down; i <= up; i++)
+    for(int j = left; j <= right; j++)
+      if(getWorld()->isKleptoBot(j, i))
+        count++;
 
-void Boulder::doSomething()
-{return;}
+  return (count < 3);
+}
 
 //----------Hole----------
 Hole::Hole(int x, int y, StudentWorld* ptr)
-  :Object(x, y, IID_HOLE, ptr){}
+  :Actor(IID_HOLE, x, y, ptr){}
 
 //----------Bullete----------
 Bullet::Bullet(int x, int y, StudentWorld* ptr, Direction d)
@@ -324,7 +97,7 @@ void Bullet::doSomething()
     damage(getX(),getY());
     return;
   }
-
+  // move along the current direction
   switch(getDirection()){
   case up:
     moveTo(getX(), getY()+1);
@@ -341,17 +114,26 @@ void Bullet::doSomething()
   default:
     break;
   }
+  // check the new square!
+    if(getWorld()->isBlocked(getX(), getY())){
+    damage(getX(),getY());
+    return;
+  }
 }
 
 //----------Collectable----------
 Collectable::Collectable(int x, int y, int id, StudentWorld* ptr)
-  :Object(x, y, id, ptr){}
+  :Actor(id, x, y, ptr){}
 
 void Collectable::collected()
 {
   setDead();
   getWorld()->playSound(SOUND_GOT_GOODIE);
+  getWorld()->deUpdate_collectable(getX(), getY());
 }
+
+Collectable::~Collectable()
+{return;}
 
 //----------Jewel----------
 Jewel::Jewel(int x, int y, StudentWorld* ptr)
@@ -371,15 +153,11 @@ Restore_health::Restore_health(int x, int y, StudentWorld* ptr)
 
 //----------Exit----------
 Exit::Exit(int x, int y, StudentWorld* ptr)
-  :Actor(IID_EXIT, x, y, ptr), revealed(false){setVisible(false);}
-
-bool Exit::isRevealed()
-{
-  return revealed;
-}
+  :Collectable( x, y,IID_EXIT, ptr), revealed(false){setVisible(false);}
 
 void Exit::doSomething()
 {
+  // just check and reveal itself
   if(!revealed){
     if(getWorld()->isComplete()){
       revealed = true;
@@ -389,24 +167,355 @@ void Exit::doSomething()
   }
 }
 
+bool Exit::isRevealed()
+{
+  return revealed;
+}
+
+//----------Character----------
+Character::Character(int x, int y, int points, int id,
+                     StudentWorld* ptr, Direction d)
+  :Actor(id, x, y, ptr, d), hitPoint(points){}
+
+
+bool Character::moveNMark(int ox, int oy, bool isBoulder)
+{
+  // in Boulder doesn't have a direction!
+  if(getDirection() != none){
+    int n = (getX() - ox) + (getY() - oy) * 3;
+    switch(n){
+    case 1:
+      setDirection(left);
+      break;
+    case -1:
+      setDirection(right);
+      break;
+    case 3:
+      setDirection(down);
+      break;
+    case -3:
+      setDirection(up);
+      break;
+    default:
+      break;
+    }
+  }
+  if(getWorld()->isWalkable(ox, oy)){
+    // Boulder has more strict blocking rules
+    if(isBoulder && !getWorld()->isEmpty(ox, oy))
+        return false;
+    getWorld()->update(ox, oy, this);
+    // TODO - might not need this anymore
+    if(getWorld()->getActor(getX(), getY()) == this )
+      getWorld()->deUpdate_character(getX(), getY());
+    moveTo(ox, oy);
+    return true;
+  }
+  return false;
+}
+
+void Character::attacked(int sound)
+{
+  hitPoint -= 2;
+  if(hitPoint <= 0){
+    this->setDead();
+    getWorld()->deUpdate_character(getX(), getY());
+  }
+  else
+    getWorld()->playSound(sound);
+}
+
+void Character::fire(int sound)
+{
+  int x = getX();
+  int y = getY();
+  Direction d = getDirection();
+  switch(d){
+  case up:
+    y += 1;
+    break;
+  case down:
+    y -= 1;
+    break;
+  case right:
+    x += 1;
+    break;
+  case left:
+    x -= 1;
+    break;
+  default:
+    break;
+  }
+  // Robots and Player have different sounds
+  getWorld()->playSound(sound);
+  Bullet* tmp = new Bullet(x, y, getWorld(), d);
+  getWorld()->addActor(tmp, false); // don't update location
+}
+
+Character::~Character()
+{return;}
+
+void Character::setHealth(int p)
+{hitPoint = p;}
+
+int Character::getHealth()
+{return hitPoint;}
+
+//----------Player----------
+Player::Player(int x, int y, StudentWorld* ptr)
+  :Character(x, y, 20, IID_PLAYER, ptr, right),
+   ammu(20){}
+
+void Player::doSomething()
+{
+  if(!isAlive())
+    return;
+  int ch;
+  int ox = getX();
+  int oy = getY();
+  pickUp(ox, oy);
+  if( getWorld()->getKey(ch) ){
+    switch(ch){
+    case KEY_PRESS_LEFT:
+      ox -= 1;
+      break;
+    case KEY_PRESS_RIGHT:
+      ox += 1;
+      break;
+    case KEY_PRESS_UP:
+      oy += 1;
+      break;
+    case KEY_PRESS_DOWN:
+      oy -= 1;
+      break;
+    case KEY_PRESS_SPACE:
+      fire();
+      break;
+    case KEY_PRESS_ESCAPE:
+      setDead();
+    default:
+      break;
+    } // If hit the direction key
+    if(ox != getX() || oy != getY()){
+      push(ox, oy); // check if Boulder
+      moveNMark(ox, oy);
+    }
+  }
+}
+void Player::fire(int sound)
+{
+  if(ammu <= 0)
+    return;
+  ammu--;
+  Character::fire(sound);
+}
+
+void Player::attacked(int blank)
+{
+  Character::attacked(SOUND_PLAYER_IMPACT);
+}
+
+void Player::push(int x, int y)
+{
+  Boulder* b = dynamic_cast<Boulder*>( getWorld()->getActor(x, y) );
+  if (b != nullptr){
+    // get the direction of Boulder about Player
+    int n = (getX() - x) + (getY() - y) * 3;
+    switch(n){
+    case 1:
+      if( !b->fill(x-1, y) )
+        b->moveNMark(x-1, y, true);
+      break;
+    case -1:
+      if( !b->fill(x+1, y) )
+        b->moveNMark(x+1, y, true);
+      break;
+    case 3:
+      if( !b->fill(x, y-1) )
+        b->moveNMark(x, y-1, true);
+      break;
+    case -3:
+      if( !b->fill(x, y+1) )
+        b->moveNMark(x, y+1, true);
+      break;
+    default:
+      break;
+    }
+  }
+}
+
+
+void Player::pickUp(int x, int y)
+{
+  Jewel* j = dynamic_cast<Jewel*>
+    (getWorld()->getCollectable(x, y));
+  Ammo* a = dynamic_cast<Ammo*>
+    (getWorld()->getCollectable(x, y));
+  Extra_life* l = dynamic_cast<Extra_life*>
+    (getWorld()->getCollectable(x, y));
+  Restore_health* h = dynamic_cast<Restore_health*>
+    (getWorld()->getCollectable(x, y));
+  Exit* e = dynamic_cast<Exit*>
+    (getWorld()->getCollectable(x, y));
+
+  if(j != nullptr){
+    buff('J');
+    j->collected();
+   } else if(a != nullptr){
+    buff('A');
+    a->collected();
+   } else if(l != nullptr){
+    buff('L');
+    l->collected();
+   } else if(h != nullptr){
+    buff('H');
+    h->collected();
+   } else if(e != nullptr && e->isRevealed()){
+    buff('E');
+    e->setDead();
+    getWorld()->finish();
+   }
+}
+void Player::buff(char c)
+{
+  switch(c){
+  case 'J':
+    getWorld()->increaseScore(50);
+    break;
+  case 'A':
+    ammu += 20;
+    getWorld()->increaseScore(100);
+    break;
+  case 'L':
+    getWorld()->incLives();
+    getWorld()->increaseScore(1000);
+    break;
+  case 'H':
+    setHealth(20);
+    getWorld()->increaseScore(500);
+    break;
+  case 'E':
+    getWorld()->increaseScore(2000);
+    break;
+  default:
+    break;
+  }
+}
+
+int Player::getAmmo()
+{return ammu;}
+
+//----------Boulder----------
+Boulder::Boulder(int x, int y, StudentWorld* ptr)
+  :Character(x, y, 10, IID_BOULDER, ptr){}
+
+bool Boulder::fill(int x, int y)
+{
+  Hole* h = dynamic_cast<Hole*>(getWorld()->getActor(x,y));
+  if(h != nullptr){
+    //make them disappear first, and the dead body will be clean up
+    // after a tick;
+    h->setDead();
+    this->setDead();
+    getWorld()->deUpdate_character(x,y);
+    getWorld()->deUpdate_character(getX(), getY());
+    return true;
+  }
+  return false;
+}
+
 //----------Robot----------
 
-Robot::Robot(int x, int y, StudentWorld* ptr, int id, Direction d, int sr)
-  :Character(x, y, 10, id, ptr, d), speed_recip(sr){}
-
-void Robot::die()
+Robot::Robot(int x, int y, StudentWorld* ptr, int id, Direction d)
+  :Character(x, y, 10, id, ptr, d)
 {
-  getWorld()->playSound(SOUND_ROBOT_DIE);
+  // calculate the speed according to the level number
+  speed_recip = ( ( (28 - ptr->getLevel()) / 4 ) > 3 )
+    ? ((28 - ptr->getLevel()) /4 ): 3;
+}
+
+bool Robot::shouldMove(int tick)
+{
+  // move every "speed" ticks
+  return (tick % speed_recip == 0);
+}
+
+bool Robot::shouldFire(Player* p1)
+{
+  int h = p1->getX() - this->getX();
+  int v = p1->getY() - this->getY();
+  bool sf = false;
+  Direction d = getDirection();
+  // same col
+  if(h == 0){
+    if(v > 0 && d == up){
+      sf = true;
+      // if blocked
+      for(int i = 1; i < v; i++)
+        if(getWorld()->isBlocked(getX(), getY() + i))
+          sf = false;
+    }
+    else if(v < 0 && d == down){
+      sf = true;
+      for(int i = 1; i < (-v); i++)
+        if(getWorld()->isBlocked(getX(), getY() - i))
+          sf = false;
+    }
+  }// same row
+  else if(v == 0){
+    if(h > 0 && d == right){
+      sf = true;
+      for(int i = 1; i < h; i++)
+        if(getWorld()->isBlocked(getX() + i, getY()))
+          sf = false;
+    }
+    else if(h < 0 && d == left){
+      sf = true;
+      for(int i = 1; i < (-h); i++)
+        if(getWorld()->isBlocked(getX() - i, getY()))
+          sf = false;
+    }
+  }
+  return sf;
+}
+
+void Robot::attacked(int blank)
+{
+  Character::attacked(SOUND_ROBOT_IMPACT);
+}
+
+void Robot::fire(int sound)
+{
+  Character::fire(sound);
 }
 
 Robot::~Robot()
-{return;}
-
-void Robot::doSomething(int tick)
 {
+  // if it's still alive-> the level finished, don't play sound.
+  if(!isAlive())
+    getWorld()->playSound(SOUND_ROBOT_DIE);
+}
+
+//----------SnarlBot----------
+
+SnarlBot::SnarlBot(int x, int y, StudentWorld* ptr, Direction d)
+  :Robot(x, y, ptr, IID_SNARLBOT, d) {}
+
+void SnarlBot::doSomething()
+{
+  if(!isAlive())
+    return;
+  if(!shouldMove(getWorld()->getTick()))
+    return;
+  if(shouldFire(getWorld()->getPlayer())){
+    fire();
+    return;
+  }
+  // move along current direction
   switch(getDirection()){
   case up:
     if( !moveNMark(getX(), getY()+1) )
+      // if blocked, turn to opposite direction
       setDirection(down);
     break;
   case down:
@@ -426,97 +535,66 @@ void Robot::doSomething(int tick)
   }
 }
 
-bool Robot::shouldMove(int tick)
+SnarlBot::~SnarlBot()
 {
-  return (tick % speed_recip == 0);
-}
-
-void Robot::fire(int sound)
-{
-  Character::fire(sound);
-}
-
-bool Robot::shouldFire(Player* p1)
-{
-  int h = p1->getX() - this->getX();
-  int v = p1->getY() - this->getY();
-  bool sf = false;
-  Direction d = getDirection();
-
-  if(h == 0){
-    if(v > 0 && d == up){
-      sf = true;
-      for(int i = 1; i < v; i++)
-        if(getWorld()->isBlocked(getX(), getY() + i))
-          sf = false;
-    }
-    else if(v < 0 && d == down){
-      sf = true;
-      for(int i = 1; i < (-v); i++)
-        if(getWorld()->isBlocked(getX(), getY() - i))
-          sf = false;
-    }
-  }
-  else if(v == 0){
-    if(h > 0 && d == right){
-      sf = true;
-      for(int i = 1; i < h; i++)
-        if(getWorld()->isBlocked(getX() + i, getY()))
-          sf = false;
-    }
-    else if(h < 0 && d == left){
-      sf = true;
-      for(int i = 1; i < (-h); i++)
-        if(getWorld()->isBlocked(getX() - i, getY()))
-          sf = false;
-    }
-  }
-  return sf;
-}
-
-//----------SnarlBot----------
-
-SnarlBot::SnarlBot(int x, int y, StudentWorld* ptr, int sr, Direction d)
-  :Robot(x, y, ptr, IID_SNARLBOT, d, sr) {}
-
-void SnarlBot::doSomething()
-{return;}
-
-void SnarlBot::attacked(int blank)
-{
-  Character::attacked(SOUND_ROBOT_IMPACT);
-}
-
-void SnarlBot::die()
-{
-  Robot::die();
-  getWorld()->increaseScore(100);
-}
-
-void SnarlBot::doSomething(int tick)
-{
-  if(!shouldMove(tick))
-    return;
-
-  if(shouldFire(getWorld()->getPlayer())){
-    fire();
-    return;
-  }
-
-  Robot::doSomething(tick);
+  // if still alive-> level finished, don't add socre
+  if(!isAlive())
+    getWorld()->increaseScore(100);
 }
 
 //----------KleptoBot----------
 
-KleptoBot::KleptoBot(int x, int y, StudentWorld* ptr, int sr, int id)
-  :Robot(x, y, ptr, id, right, sr), turnUntil((rand() % 5) + 1),
+KleptoBot::KleptoBot(int x, int y, StudentWorld* ptr, int id)
+  :Robot(x, y, ptr, id, right), turnUntil((rand() % 5) + 1),
    picked(nullptr){}
 
-KleptoBot::~KleptoBot()
+void KleptoBot::doSomething()
 {
-  if(isAlive())
-    if(picked != nullptr)
-      delete picked;
+  if(!isAlive())
+    return;
+  if(turnUntil == 0){
+    randDirection();
+    turnUntil = (rand() % 5) + 1;
+  }
+  // if picked something up
+  if(pickUp(getX(), getY()))
+    return;
+
+  int ox = getX();
+  int oy = getY();
+  Direction d0 = getDirection();
+  switch(d0){
+  case up:
+    oy++;
+    break;
+  case down:
+    oy--;
+    break;
+  case left:
+    ox--;
+    break;
+  case right:
+    ox++;
+    break;
+  default:
+    break;
+  }
+  if(getWorld()->isWalkable(ox, oy)){
+    moveNMark(ox, oy);
+    turnUntil--;
+  } // if blocked
+  else{
+    randDirection();
+    ox = getX();
+    oy = getY();
+    turnUntil = (rand() % 5) + 1;
+    if(isEnclosed(ox, oy))
+      return;
+    else{
+      moveNMark(ox, oy);
+       turnUntil--;
+    }
+  }
 }
 
 void KleptoBot::randDirection()
@@ -565,7 +643,7 @@ bool KleptoBot::pickUp(int x, int y)
     return false;
   Ammo* a = dynamic_cast<Ammo*>
     (getWorld()->getCollectable(x, y));
-  Extra_life* e = dynamic_cast<Extra_life*>
+  Extra_life* l = dynamic_cast<Extra_life*>
     (getWorld()->getCollectable(x, y));
   Restore_health* h = dynamic_cast<Restore_health*>
     (getWorld()->getCollectable(x, y));
@@ -578,8 +656,8 @@ bool KleptoBot::pickUp(int x, int y)
     picked->setVisible(false);
     return true;
   }
-  else if(e != nullptr){
-    e->setDead();
+  else if(l != nullptr){
+    l->setDead();
     getWorld()->playSound(SOUND_ROBOT_MUNCH);
     getWorld()->deUpdate_collectable(x, y);
     picked = new Extra_life(x, y, getWorld());
@@ -597,93 +675,53 @@ bool KleptoBot::pickUp(int x, int y)
   return false;
 }
 
-void KleptoBot::die()
+KleptoBot::~KleptoBot()
 {
-  Robot::die();
   if(picked != nullptr){
-    if(getWorld()->isEmpty(getX(), getY())){
-      picked->moveTo(getX(), getY());
-      getWorld()->addActor(picked);
-      picked->setVisible(true);
-    }
-    else
+    if(isAlive())
       delete picked;
-  }
-}
-
-void KleptoBot::doSomething()
-{
-  if(turnUntil == 0){
-    randDirection();
-    turnUntil = (rand() % 5) + 1;
-  }
-  turnUntil--;
-
-  if(pickUp(getX(), getY()))
-    return;
-
-  int ox = getX();
-  int oy = getY();
-  Direction d0 = getDirection();
-  switch(d0){
-  case up:
-    oy++;
-    break;
-  case down:
-    oy--;
-    break;
-  case left:
-    ox--;
-    break;
-  case right:
-    ox++;
-    break;
-  default:
-    break;
-  }
-  if(getWorld()->isWalkable(ox, oy)){
-    moveNMark(ox, oy);
-    turnUntil--;
-  }
-  else{
-    randDirection();
-    ox = getX();
-    oy = getY();
-    turnUntil = (rand() % 5) + 1;
-    if(isEnclosed(ox, oy))
-      return;
     else{
-      moveNMark(ox, oy);
-       turnUntil--;
+      if(getWorld()->isEmpty(getX(), getY())){
+        picked->moveTo(getX(), getY());
+        getWorld()->addActor(picked);
+        picked->setVisible(true);
+      }
+      else
+        delete picked;
     }
   }
 }
 
 //----------Normal_KleptoBot----------
-Normal_KleptoBot::Normal_KleptoBot(int x, int y, StudentWorld* ptr, int sr)
-  :KleptoBot(x, y, ptr, sr, IID_KLEPTOBOT){ setHealth(5); }
 
-void Normal_KleptoBot::doSomething(int tick)
+Normal_KleptoBot::Normal_KleptoBot(int x, int y, StudentWorld* ptr)
+  :KleptoBot(x, y, ptr, IID_KLEPTOBOT){ setHealth(5); }
+
+void Normal_KleptoBot::doSomething()
 {
-  if(!shouldMove(tick))
+  if(!isAlive())
+    return;
+  if(!shouldMove(getWorld()->getTick()))
     return;
   KleptoBot::doSomething();
 }
 
-void Normal_KleptoBot::die()
+Normal_KleptoBot::~Normal_KleptoBot()
 {
-  KleptoBot::die();
-  getWorld()->increaseScore(10);
+  if(!isAlive())
+    getWorld()->increaseScore(10);
 }
 
 //----------Angry_KleptoBot----------
 
-Angry_KleptoBot::Angry_KleptoBot(int x, int y, StudentWorld* ptr, int sr)
-  :KleptoBot(x, y, ptr, sr, IID_ANGRY_KLEPTOBOT) { setHealth(8); }
+Angry_KleptoBot::Angry_KleptoBot(int x, int y, StudentWorld* ptr)
+  :KleptoBot(x, y, ptr, IID_ANGRY_KLEPTOBOT) { setHealth(8); }
 
-void Angry_KleptoBot::doSomething(int tick)
+void Angry_KleptoBot::doSomething()
 {
-  if(!shouldMove(tick))
+  if(!isAlive())
+    return;
+  if(!shouldMove(getWorld()->getTick()))
     return;
   if(shouldFire(getWorld()->getPlayer())){
     fire();
@@ -692,47 +730,8 @@ void Angry_KleptoBot::doSomething(int tick)
   KleptoBot::doSomething();
 }
 
-void Angry_KleptoBot::die()
+Angry_KleptoBot::~Angry_KleptoBot()
 {
-  KleptoBot::die();
-  getWorld()->increaseScore(20);
-}
-
-//----------KleptoBot_Factory----------
-KleptoBot_Factory::KleptoBot_Factory(int x, int y, StudentWorld* ptr,
-                                     int sr, bool angry)
-  :Wall(x, y, ptr, IID_ROBOT_FACTORY), speed(sr), isAngry(angry){}
-
-void KleptoBot_Factory::doSomething()
-{
-  if(getWorld()->isWalkable(getX(), getY()))
-    getWorld()->update(getX(), getY(), this);
-
-  if(rand() % 50 != 0 )
-    return;
-  if(shouldCreate()){
-    getWorld()->playSound(SOUND_ROBOT_BORN);
-    if(!isAngry)
-      getWorld()->addActor( new Normal_KleptoBot(getX(), getY(), getWorld(), speed) );
-    else
-      getWorld()->addActor( new Angry_KleptoBot(getX(), getY(), getWorld(), speed) );
-  }
-}
-
-bool KleptoBot_Factory::shouldCreate()
-{
-  if(getWorld()->isKleptoBot(getX(), getY()))
-    return false;
-  int up = ( (getY() + 3) > 14 ) ? 14 : (getY() + 3);
-  int down = ( (getY() - 3) > 0 ) ? (getY() - 3) : 0;
-  int right = ( (getX() + 3) > 14 ) ? 14 : (getX() + 3);
-  int left = ( (getX() - 3) > 0 ) ? (getX() - 3) : 0;
-
-  int count = 0;
-  for(int i = down; i <= up; i++)
-    for(int j = left; j <= right; j++)
-      if(getWorld()->isKleptoBot(j, i))
-        count++;
-
-  return (count < 3);
+  if(!isAlive())
+    getWorld()->increaseScore(20);
 }
